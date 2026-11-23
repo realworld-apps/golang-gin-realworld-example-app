@@ -27,14 +27,21 @@ func extractToken(c *gin.Context) string {
 }
 
 // A helper to write user_id and user_model to the context
-func UpdateContextUserModel(c *gin.Context, my_user_id uint) {
+// It returns false if the user could not be loaded (the context is then reset
+// to anonymous), and true otherwise (including the anonymous case, id == 0)
+func UpdateContextUserModel(c *gin.Context, my_user_id uint) bool {
 	var myUserModel UserModel
 	if my_user_id != 0 {
 		db := common.GetDB()
-		db.First(&myUserModel, my_user_id)
+		if err := db.First(&myUserModel, my_user_id).Error; err != nil {
+			c.Set("my_user_id", uint(0))
+			c.Set("my_user_model", UserModel{})
+			return false
+		}
 	}
 	c.Set("my_user_id", my_user_id)
 	c.Set("my_user_model", myUserModel)
+	return true
 }
 
 // You can custom middlewares yourself as the doc: https://github.com/gin-gonic/gin#custom-middleware
@@ -69,7 +76,10 @@ func AuthMiddleware(auto401 bool) gin.HandlerFunc {
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			my_user_id := uint(claims["id"].(float64))
-			UpdateContextUserModel(c, my_user_id)
+			if !UpdateContextUserModel(c, my_user_id) && auto401 {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorMessage("user", "does not exist"))
+				return
+			}
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"time"
 
@@ -15,7 +16,28 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Minimum length required for JWT_SECRET.
+const minJWTSecretLength = 32
+
+// JWTSecret is loaded from the JWT_SECRET environment variable by InitJWTSecret.
+// It must never be hardcoded in the source code.
+var JWTSecret string
+
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+// InitJWTSecret loads JWT_SECRET from the environment and validates it.
+// It returns an error if the variable is missing, empty or shorter than 32 characters.
+func InitJWTSecret() error {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return errors.New("JWT_SECRET is not set")
+	}
+	if len(secret) < minJWTSecretLength {
+		return fmt.Errorf("JWT_SECRET must be at least %d characters long", minJWTSecretLength)
+	}
+	JWTSecret = secret
+	return nil
+}
 
 // A helper function to generate random string
 func RandString(n int) string {
@@ -39,11 +61,12 @@ func RandInt() int {
 	return int(randNum.Int64())
 }
 
-// Keep this config private, it should not expose to open source
-const JWTSecret = "A String Very Very Very Strong!!@##$!@#$" // #nosec G101
-
 // A Util function to generate jwt_token which can be used in the request header
 func GenToken(id uint) string {
+	if JWTSecret == "" {
+		fmt.Printf("failed to sign JWT token for id %d: JWT secret is not initialized\n", id)
+		return ""
+	}
 	jwt_token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":  id,
 		"exp": time.Now().Add(time.Hour * 24).Unix(),

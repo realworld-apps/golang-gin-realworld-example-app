@@ -22,6 +22,10 @@ func Migrate(db *gorm.DB) {
 }
 
 func main() {
+	// Initialize JWT secret from environment variable
+	if err := common.InitJWTSecret(); err != nil {
+		log.Fatal("Failed to initialize JWT secret: ", err)
+	}
 
 	db := common.Init()
 	Migrate(db)

@@ -368,7 +368,7 @@ var unauthRequestTests = []struct {
 	{
 		func(req *http.Request) {
 			resetDBWithMock()
-			common.HeaderTokenMock(req, 4)
+			common.HeaderTokenMock(req, 1)
 		},
 		"/user/",
 		"PUT",
